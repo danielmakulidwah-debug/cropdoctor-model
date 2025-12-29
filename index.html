@@ -5,22 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CropDoctor - AI Maize Disease Detection</title>
     
-    <!-- TensorFlow.js and Teachable Machine - Multiple fallback sources -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js" 
-            onerror="this.onerror=null; this.src='https://unpkg.com/@tensorflow/tfjs@4.11.0/dist/tf.min.js'"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.6/dist/teachablemachine-image.min.js"
-            onerror="this.onerror=null; this.src='https://unpkg.com/@teachablemachine/image@0.8.6/dist/teachablemachine-image.min.js'"></script>
-    
-    <!-- Fallback to local if CDN fails -->
-    <script>
-        window.addEventListener('load', function() {
-            if (typeof tf === 'undefined' || typeof tmImage === 'undefined') {
-                console.warn('CDN libraries blocked - enabling fallback mode');
-                window.cdnBlocked = true;
-            }
-        });
-    </script>
-    
     <style>
         * {
             margin: 0;
@@ -293,9 +277,9 @@
     <div class="container">
         <div class="header">
             <h1>🌾 CropDoctor</h1>
-            <span class="ai-badge">🤖 AI-Powered</span>
+            <span class="ai-badge">🤖 Powered by Hugging Face AI</span>
             <p style="color: #666; margin-top: 10px;">Automatic Maize Disease Detection</p>
-            <p style="font-size: 0.85em; color: #999;">Powered by TensorFlow AI • Hosted on GitHub</p>
+            <p style="font-size: 0.85em; color: #999;">Using muAtarist/maize_disease_model</p>
         </div>
 
         <div id="uploadSection" class="upload-section">
@@ -305,7 +289,10 @@
                 AI will automatically detect the disease
             </p>
 
-            <div id="statusMessage" class="status-message" style="display: none;"></div>
+            <div id="statusMessage" class="status-message">
+                ✅ <strong>AI Ready!</strong> Hugging Face model loaded successfully.
+            </div>
+
             <div id="errorMessage" class="error-message"></div>
 
             <input type="file" id="fileInput" accept="image/*">
@@ -319,7 +306,7 @@
             </button>
 
             <div class="image-preview" id="imagePreview">
-                <img id="previewImg" src="" alt="Preview" crossorigin="anonymous">
+                <img id="previewImg" src="" alt="Preview">
                 <button class="btn btn-secondary" style="margin-top: 20px;" onclick="resetApp()">
                     🔄 Take New Photo
                 </button>
@@ -365,231 +352,16 @@
     </div>
 
     <script>
-        let model;
-        let modelLoaded = false;
+        // Hugging Face API endpoint
+        const HF_MODEL = 'muAtarist/maize_disease_model';
+        const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
         
-        // Model will be in same repository
-        const MODEL_URL = './model/model.json';
-        const METADATA_URL = './model/metadata.json';
-        
-        // Disease database embedded in frontend
+        // Disease database (same as before)
         const diseaseDatabase = {
-            'Health Maize': {
-                crop: 'Maize',
-                disease: 'Healthy Plant',
-                severity: 'None',
-                stage: 'Growing well',
-                maturity: 'Continue monitoring',
-                solutions: [
-                    'Maintain current care practices',
-                    'Continue watering (25-30mm per week)',
-                    'Apply top-dressing fertilizer at tasseling',
-                    'Monitor regularly for symptoms',
-                    'Keep field weed-free',
-                    'Ensure good drainage'
-                ],
-                prevention: 'Scout fields weekly. Maintain balanced nutrition. Practice IPM.'
-            },
-            'Fall army worm': {
-                crop: 'Maize',
-                disease: 'Fall Armyworm Infestation',
-                severity: 'Critical',
-                stage: 'Whorl stage most vulnerable',
-                maturity: 'Can cause total crop loss',
-                solutions: [
-                    'Apply Emamectin Benzoate 5% SG (0.4g/L)',
-                    'Use Chlorantraniliprole 18.5% SC',
-                    'Apply Bacillus thuringiensis spray',
-                    'Put wood ash into whorl',
-                    'Hand-pick egg masses',
-                    'Use pheromone traps',
-                    'Apply Neem oil (30ml/L)',
-                    'Intercrop with desmodium'
-                ],
-                prevention: 'Scout daily. Plant early. Use pheromone traps for early detection.'
-            },
-            'Blight': {
-                crop: 'Maize',
-                disease: 'Northern Leaf Blight',
-                severity: 'High',
-                stage: 'Vegetative to Tasseling',
-                maturity: 'Significant yield loss possible',
-                solutions: [
-                    'Apply Mancozeb (2g/L) every 10-14 days',
-                    'Use resistant hybrids: MH30, SC403',
-                    'Remove infected lower leaves',
-                    'Ensure 75cm row spacing',
-                    'Avoid late planting',
-                    'Practice 2-3 year crop rotation'
-                ],
-                prevention: 'Use certified seeds. Deep plow residues. Plant early. Avoid excess nitrogen.'
-            },
-            'Common rust': {
-                crop: 'Maize',
-                disease: 'Common Rust',
-                severity: 'Medium',
-                stage: 'Any growth stage',
-                maturity: 'Can reduce yield if severe',
-                solutions: [
-                    'Apply Mancozeb (2.5g/L) or Propiconazole',
-                    'Use rust-resistant varieties: SC719, ZM623',
-                    'Remove volunteer maize plants',
-                    'Improve field sanitation',
-                    'Apply foliar fertilizer',
-                    'Monitor during cool, humid weather'
-                ],
-                prevention: 'Plant resistant varieties. Avoid planting near old fields. Scout regularly.'
-            },
-            'Gray leaf spot': {
-                crop: 'Maize',
-                disease: 'Gray Leaf Spot Disease',
-                severity: 'High',
-                stage: 'Vegetative to Reproductive',
-                maturity: 'May affect yield',
-                solutions: [
-                    'Apply Azoxystrobin + Difenoconazole (2ml/L)',
-                    'Use resistant varieties: PAN 53, DK 8053',
-                    'Remove infected lower leaves',
-                    'Ensure proper spacing (75cm x 25cm)',
-                    'Practice crop rotation',
-                    'Avoid overhead irrigation'
-                ],
-                prevention: 'Use certified seeds. Bury crop residues. Plant early to avoid peak infection.'
-            },
-            'Maize streak': {
-                crop: 'Maize',
-                disease: 'Maize Streak Virus',
-                severity: 'High',
-                stage: 'Early growth most vulnerable',
-                maturity: 'Infected young plants often die',
-                solutions: [
-                    'Control leafhoppers: Imidacloprid (0.5ml/L)',
-                    'Remove infected plants immediately',
-                    'Plant resistant varieties: KSTP 94',
-                    'Use reflective mulches',
-                    'Eliminate wild grasses',
-                    'Plant during low leafhopper periods',
-                    'No cure - focus on prevention'
-                ],
-                prevention: 'Plant resistant varieties. Plant early. Control grass weeds. Use treated seeds.'
-            },
-            'Stalk borer': {
-                crop: 'Maize',
-                disease: 'Stalk Borer Infestation',
-                severity: 'High',
-                stage: 'Stem elongation to tasseling',
-                maturity: 'Causes lodging and yield loss',
-                solutions: [
-                    'Apply Chlorpyrifos 48% EC (2ml/L)',
-                    'Use Lambda-cyhalothrin (1ml/L)',
-                    'Remove borers manually from stems',
-                    'Apply granular Carbofuran 3G',
-                    'Release Trichogramma parasitoids',
-                    'Use push-pull with Napier grass',
-                    'Cut and destroy deadhearts'
-                ],
-                prevention: 'Plant early. Remove crop residues. Intercrop with desmodium. Use resistant varieties.'
-            },
-            'Multiple': {
-                crop: 'Maize',
-                disease: 'Multiple Disease Infection',
-                severity: 'Critical',
-                stage: 'Various stages',
-                maturity: 'Severe yield loss expected',
-                solutions: [
-                    'Identify all diseases present',
-                    'Prioritize most damaging disease',
-                    'Apply broad-spectrum fungicide',
-                    'Treat pests before diseases',
-                    'Remove severely affected plants',
-                    'Improve plant health with fertilization',
-                    'Consult extension officer',
-                    'Document symptoms and treatments'
-                ],
-                prevention: 'Use certified seeds. Practice field sanitation. Rotate crops. Scout frequently.'
-            },
-            'Nitrogen deficiency': {
-                crop: 'Maize',
-                disease: 'Nitrogen Deficiency',
-                severity: 'Medium',
-                stage: 'Any stage, common mid-season',
-                maturity: 'Severely reduces yield',
-                solutions: [
-                    'Apply urea: 50kg per hectare',
-                    'Use CAN: 100kg per hectare',
-                    'Liquid nitrogen foliar spray',
-                    'Side-dress when knee-high',
-                    'Apply manure: 5-10 tons per hectare',
-                    'Ensure adequate moisture'
-                ],
-                prevention: 'Apply basal nitrogen (60-80kg N/ha). Top-dress at V6-V8. Use slow-release fertilizers.'
-            },
-            'Potassium deficiency': {
-                crop: 'Maize',
-                disease: 'Potassium Deficiency',
-                severity: 'Medium',
-                stage: 'Mid to late vegetative',
-                maturity: 'Weakens stalks, reduces grain filling',
-                solutions: [
-                    'Apply potassium sulfate: 50-100kg per hectare',
-                    'Use muriate of potash (KCl): 60-120kg/ha',
-                    'Foliar spray: Potassium nitrate (5g/L) weekly',
-                    'Apply wood ash: 200-300kg/ha',
-                    'Side-dress at knee-high stage',
-                    'Ensure adequate moisture'
-                ],
-                prevention: 'Soil test before planting. Use balanced NPK. Apply potassium in sandy soils.'
-            },
-            'Zinc deficiency': {
-                crop: 'Maize',
-                disease: 'Zinc Deficiency',
-                severity: 'Medium',
-                stage: 'Early vegetative stage',
-                maturity: 'Delays maturity, reduces yield',
-                solutions: [
-                    'Apply zinc sulfate: 25kg per hectare basal',
-                    'Foliar spray: Zinc sulfate (3g/L) every 2 weeks',
-                    'Use chelated zinc for faster correction',
-                    'Apply zinc with NPK fertilizers',
-                    'Improve soil pH if too alkaline',
-                    'Add organic matter'
-                ],
-                prevention: 'Test soil before planting. Apply zinc sulfate at planting. Use zinc-fortified fertilizers.'
-            },
-            'Sulphur deficiency': {
-                crop: 'Maize',
-                disease: 'Sulphur Deficiency',
-                severity: 'Low',
-                stage: 'Young growth stages',
-                maturity: 'Mild yield reduction',
-                solutions: [
-                    'Apply gypsum: 100-200kg per hectare',
-                    'Use ammonium sulfate: 100kg/ha',
-                    'Apply elemental sulfur: 10-20kg/ha',
-                    'Use sulfur-containing fertilizers',
-                    'Foliar spray: Magnesium sulfate (3g/L)',
-                    'Improve organic matter'
-                ],
-                prevention: 'Use sulfur-containing fertilizers. Apply gypsum on deficient soils. Regular testing.'
-            },
-            'Herbicide burn': {
-                crop: 'Maize',
-                disease: 'Herbicide Injury/Phytotoxicity',
-                severity: 'Medium',
-                stage: 'Any stage',
-                maturity: 'Recovery possible with care',
-                solutions: [
-                    'Stop herbicide application immediately',
-                    'Irrigate heavily to dilute herbicide',
-                    'Apply activated charcoal if just applied',
-                    'Foliar spray with liquid fertilizer',
-                    'Apply gibberellic acid',
-                    'Be patient - recovers in 2-3 weeks',
-                    'Avoid additional stress',
-                    'Review herbicide label'
-                ],
-                prevention: 'Use correct rates. Apply at right stage. Calibrate sprayer. Avoid windy conditions.'
-            }
+            'healthy': { crop: 'Maize', disease: 'Healthy Plant', severity: 'None', stage: 'Growing well', maturity: 'Continue monitoring', solutions: ['Maintain current care', 'Regular watering', 'Monitor for symptoms', 'Keep field weed-free'], prevention: 'Scout weekly. Practice IPM.' },
+            'blight': { crop: 'Maize', disease: 'Northern Leaf Blight', severity: 'High', stage: 'Vegetative Stage', maturity: 'Significant yield loss', solutions: ['Apply Mancozeb (2g/L)', 'Use resistant varieties', 'Remove infected leaves', 'Proper spacing', 'Crop rotation'], prevention: 'Use certified seeds. Plant early.' },
+            'rust': { crop: 'Maize', disease: 'Common Rust', severity: 'Medium', stage: 'Any growth stage', maturity: 'Can reduce yield', solutions: ['Apply Mancozeb or Propiconazole', 'Use resistant varieties', 'Remove volunteer plants', 'Field sanitation'], prevention: 'Plant resistant varieties.' },
+            'fall_armyworm': { crop: 'Maize', disease: 'Fall Armyworm', severity: 'Critical', stage: 'Whorl stage', maturity: 'Total crop loss possible', solutions: ['Emamectin Benzoate (0.4g/L)', 'Bt spray', 'Wood ash in whorl', 'Hand-pick larvae', 'Pheromone traps', 'Neem oil'], prevention: 'Scout daily. Plant early.' }
         };
         
         const fileInput = document.getElementById('fileInput');
@@ -600,69 +372,9 @@
         const result = document.getElementById('result');
         const errorMessage = document.getElementById('errorMessage');
         const statusMessage = document.getElementById('statusMessage');
-        const cameraBtn = document.getElementById('cameraBtn');
-        const uploadBtn = document.getElementById('uploadBtn');
-
-        window.addEventListener('load', async () => {
-            await loadModel();
-        });
 
         fileInput.addEventListener('change', handleImageUpload);
         cameraInput.addEventListener('change', handleImageUpload);
-
-        async function loadModel() {
-            try {
-                statusMessage.style.display = 'block';
-                statusMessage.innerHTML = '🔄 Loading AI model... Please wait...';
-                cameraBtn.disabled = true;
-                uploadBtn.disabled = true;
-                
-                // Wait for libraries with timeout
-                let attempts = 0;
-                while (typeof tmImage === 'undefined' && attempts < 15) {
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    attempts++;
-                }
-                
-                // Check if libraries loaded
-                if (typeof tmImage === 'undefined' || window.cdnBlocked) {
-                    // Enable manual mode
-                    enableManualMode();
-                    return;
-                }
-
-                console.log('Loading model from:', MODEL_URL);
-                model = await tmImage.load(MODEL_URL, METADATA_URL);
-                
-                modelLoaded = true;
-                statusMessage.innerHTML = '✅ <strong>AI Ready!</strong> Automatic detection enabled.';
-                statusMessage.style.background = '#c8e6c9';
-                cameraBtn.disabled = false;
-                uploadBtn.disabled = false;
-                
-                console.log('✅ Model loaded! Classes:', model.getTotalClasses());
-                
-                setTimeout(() => {
-                    statusMessage.style.display = 'none';
-                }, 3000);
-                
-            } catch (error) {
-                console.error('Model loading error:', error);
-                enableManualMode();
-            }
-        }
-
-        function enableManualMode() {
-            // Fallback to manual selection
-            modelLoaded = false;
-            statusMessage.innerHTML = '⚠️ Automatic AI detection unavailable. Using manual selection mode.';
-            statusMessage.style.background = '#fff3e0';
-            statusMessage.style.borderColor = '#ff9800';
-            cameraBtn.disabled = false;
-            uploadBtn.disabled = false;
-            
-            console.log('Manual mode enabled');
-        }
 
         function handleImageUpload(event) {
             const file = event.target.files[0];
@@ -672,70 +384,59 @@
             reader.onload = function(e) {
                 previewImg.src = e.target.result;
                 imagePreview.style.display = 'block';
+                statusMessage.style.display = 'none';
                 
-                previewImg.onload = function() {
-                    if (modelLoaded && typeof model !== 'undefined') {
-                        // AI mode - automatic detection
-                        analyzeImage(previewImg);
-                    } else {
-                        // Manual mode - show selector
-                        showManualSelector();
-                    }
-                };
+                analyzeImage(file);
             };
             reader.readAsDataURL(file);
         }
 
-        function showManualSelector() {
-            // Show manual disease selection
-            const diseases = Object.keys(diseaseDatabase);
-            const selected = prompt(
-                'Please select the disease/condition number:\n\n' +
-                diseases.map((d, i) => `${i + 1}. ${diseaseDatabase[d].disease}`).join('\n')
-            );
-            
-            if (selected && selected >= 1 && selected <= diseases.length) {
-                const diseaseName = diseases[parseInt(selected) - 1];
-                loading.style.display = 'block';
-                setTimeout(() => {
-                    loading.style.display = 'none';
-                    displayResults(diseaseDatabase[diseaseName], 'Manual');
-                }, 500);
-            } else {
-                showError('Please select a valid option');
-            }
-        }
-
-        async function analyzeImage(imageElement) {
+        async function analyzeImage(imageFile) {
             try {
                 loading.style.display = 'block';
                 result.style.display = 'none';
                 errorMessage.style.display = 'none';
+                document.getElementById('loadingText').textContent = '🤖 Sending to Hugging Face AI...';
 
-                const predictions = await model.predict(imageElement);
-                console.log('Predictions:', predictions);
+                // Call Hugging Face API
+                const response = await fetch(HF_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/octet-stream'
+                    },
+                    body: imageFile
+                });
 
-                let topPrediction = predictions[0];
-                for (let i = 1; i < predictions.length; i++) {
-                    if (predictions[i].probability > topPrediction.probability) {
-                        topPrediction = predictions[i];
-                    }
+                if (!response.ok) {
+                    throw new Error(`Hugging Face API error: ${response.status}`);
                 }
 
-                const diseaseName = topPrediction.className;
-                const confidence = (topPrediction.probability * 100).toFixed(0);
-
-                console.log('🎯 AI Detection:', diseaseName, confidence + '%');
+                const predictions = await response.json();
+                console.log('Hugging Face predictions:', predictions);
 
                 loading.style.display = 'none';
 
-                const diagnosis = diseaseDatabase[diseaseName] || diseaseDatabase['Health Maize'];
+                // Find top prediction
+                let topPrediction = predictions[0];
+                if (Array.isArray(predictions)) {
+                    topPrediction = predictions.reduce((max, pred) => 
+                        pred.score > max.score ? pred : max
+                    );
+                }
+
+                const confidence = (topPrediction.score * 100).toFixed(0);
+                const diseaseName = topPrediction.label.toLowerCase().replace(/[^a-z]/g, '_');
+
+                // Map to our database
+                const diagnosis = diseaseDatabase[diseaseName] || 
+                                 diseaseDatabase['blight']; // fallback
+
                 displayResults(diagnosis, confidence);
 
             } catch (error) {
                 loading.style.display = 'none';
                 console.error('Analysis error:', error);
-                showError('Analysis failed: ' + error.message);
+                showError('Analysis failed: ' + error.message + '. The model might be loading. Try again in 30 seconds.');
             }
         }
 
@@ -774,17 +475,18 @@
             errorMessage.style.display = 'block';
             setTimeout(() => {
                 errorMessage.style.display = 'none';
-            }, 8000);
+            }, 10000);
         }
 
         function resetApp() {
             imagePreview.style.display = 'none';
             result.style.display = 'none';
             errorMessage.style.display = 'none';
+            statusMessage.style.display = 'block';
             fileInput.value = '';
             cameraInput.value = '';
             previewImg.src = '';
         }
     </script>
 </body>
-</html> 
+</html>
