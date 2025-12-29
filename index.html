@@ -355,6 +355,7 @@
         // Hugging Face API endpoint
         const HF_MODEL = 'muAtarist/maize_disease_model';
         const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+        const HF_TOKEN = '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';
         
         // Disease database (same as before)
         const diseaseDatabase = {
@@ -402,7 +403,8 @@
                 const response = await fetch(HF_API_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/octet-stream'
+                        'Content-Type': 'application/octet-stream',
+                        'Authorization': `Bearer ${HF_TOKEN}`
                     },
                     body: imageFile
                 });
