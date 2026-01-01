@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CropDoctor - AI Maize Disease Detection</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #2e7d32;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .ai-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        .upload-section {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 40px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #2196f3;
+            color: white;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .image-preview {
+            margin: 20px 0;
+            display: none;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .loading {
+            display: none;
+            margin: 30px 0;
+        }
+
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4caf50;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .diagnosis-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .diagnosis-card h2 {
+            color: #2e7d32;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .confidence {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 5px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 1.1em;
+        }
+
+        .severity {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+
+        .severity-high { background: #ffcdd2; color: #c62828; }
+        .severity-medium { background: #fff9c4; color: #f57f17; }
+        .severity-low { background: #fff9c4; color: #f57f17; }
+        .severity-none { background: #c8e6c9; color: #2e7d32; }
+        .severity-critical { background: #ef5350; color: white; }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .info-box {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .info-box strong {
+            display: block;
+            color: #2e7d32;
+            margin-bottom: 5px;
+        }
+
+        .solutions {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .solutions h3 {
+            color: #2e7d32;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .solution-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .solution-number {
+            background: #4caf50;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .prevention-box {
+            background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        .prevention-box h4 {
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .status-message {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 0.95em;
+            border: 2px solid #4caf50;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            .header h1 {
+                font-size: 1.8em;
+            }
+            .btn {
+                padding: 12px 30px;
+                font-size: 14px;
+                display: block;
+                width: 100%;
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌾 CropDoctor</h1>
+            <span class="ai-badge">🤖 Powered by Roboflow AI</span>
+            <p style="color: #666; margin-top: 10px;">Automatic Maize Disease Detection</p>
+            <p style="font-size: 0.85em; color: #999;">Real AI Detection - 11 Maize Diseases</p>
+        </div>
+
+        <div id="uploadSection" class="upload-section">
+            <div style="font-size: 80px; margin-bottom: 20px;">📷</div>
+            <h2 style="color: #333; margin-bottom: 15px;">Capture Plant Image</h2>
+            <p style="color: #666; margin-bottom: 20px;">
+                AI will automatically detect maize diseases
+            </p>
+
+            <div id="statusMessage" class="status-message" style="display: none;"></div>
+            <div id="errorMessage" class="error-message"></div>
+
+            <input type="file" id="fileInput" accept="image/*">
+            <input type="file" id="cameraInput" accept="image/*" capture="environment">
+
+            <button class="btn btn-primary" id="cameraBtn" onclick="document.getElementById('cameraInput').click()">
+                📸 Take Photo
+            </button>
+            <button class="btn btn-secondary" id="uploadBtn" onclick="document.getElementById('fileInput').click()">
+                🖼️ Upload Image
+            </button>
+
+            <div class="image-preview" id="imagePreview">
+                <img id="previewImg" src="" alt="Preview">
+                <button class="btn btn-secondary" style="margin-top: 20px;" onclick="resetApp()">
+                    🔄 Take New Photo
+                </button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 20px; color: #666;" id="loadingText">🤖 AI is analyzing your plant...</p>
+            </div>
+        </div>
+
+        <div id="result" class="result">
+            <div class="diagnosis-card">
+                <h2 id="diseaseName"></h2>
+                <div>
+                    <strong style="color: #666;">Crop:</strong> Maize (Corn)<br>
+                    <span class="confidence" id="confidenceBadge">🎯 AI Confidence: --</span>
+                    <span class="severity" id="severityBadge"></span>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-box">
+                        <strong>🌱 Disease Stage</strong>
+                        <span id="growthStage"></span>
+                    </div>
+                    <div class="info-box">
+                        <strong>📅 Action Priority</strong>
+                        <span id="maturityStatus"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="solutions">
+                <h3>💡 Recommended Actions</h3>
+                <div id="solutionsList"></div>
+            </div>
+
+            <div class="prevention-box">
+                <h4>🛡️ Prevention Tips</h4>
+                <p id="preventionText"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Roboflow API configuration
+        const API_KEY = 'rwEiJMk8mXY1lesel6YY';
+        const API_URL = 'https://detect.roboflow.com/maize-diseases-omtkw/2';
+
+        // Disease information database
+        const diseaseDatabase = {
+            'Blight': {
+                disease: 'Northern Leaf Blight',
+                severity: 'High',
+                stage: 'Fungal infection',
+                maturity: 'Yield loss 30-70%',
+                solutions: [
+                    'Apply Mancozeb 80WP at 2g/L immediately, repeat every 10-14 days',
+                    'Use resistant hybrids: MH30, MH31, SC403',
+                    'Remove infected leaves and burn them',
+                    'Maintain 75cm row spacing for air circulation',
+                    'Practice 2-3 year crop rotation with legumes'
+                ],
+                prevention: 'Use certified seeds. Plant early (November-December). Deep plow residues after harvest.'
+            },
+            'brown_spot': {
+                disease: 'Brown Spot',
+                severity: 'Medium',
+                stage: 'Fungal infection',
+                maturity: 'Yield loss 10-20%',
+                solutions: [
+                    'Apply Mancozeb or Chlorothalonil fungicide at 2g/L',
+                    'Improve field drainage to prevent waterlogging',
+                    'Remove infected plant debris from field',
+                    'Use resistant varieties if available',
+                    'Apply balanced NPK fertilizer'
+                ],
+                prevention: 'Balanced fertilization (23:21:0+4S at planting). Avoid waterlogging. Good field sanitation.'
+            },
+            'corn_rust': {
+                disease: 'Common Rust',
+                severity: 'Medium',
+                stage: 'Fungal infection',
+                maturity: 'Yield loss 10-30%',
+                solutions: [
+                    'Apply Propiconazole (Tilt) at 1ml per liter',
+                    'Alternative: Mancozeb at 2.5g/L',
+                    'Use rust-resistant hybrids: SC719, ZM623',
+                    'Remove volunteer maize plants from field',
+                    'Apply foliar fertilizer (NPK 20:20:20) to boost immunity'
+                ],
+                prevention: 'Plant resistant varieties. Scout during cool weather (16-23°C). Practice crop rotation.'
+            },
+            'corn_smut': {
+                disease: 'Corn Smut',
+                severity: 'Medium',
+                stage: 'Fungal infection',
+                maturity: 'Localized damage to ears',
+                solutions: [
+                    'Remove and destroy infected ears immediately before galls burst',
+                    'Avoid mechanical damage to plants during cultivation',
+                    'Practice crop rotation with non-host crops',
+                    'Use disease-free certified seeds',
+                    'Avoid excessive nitrogen fertilizer'
+                ],
+                prevention: 'Handle plants gently. Remove galls early. Balanced fertilization. Crop rotation.'
+            },
+            'downy_mildew': {
+                disease: 'Downy Mildew',
+                severity: 'High',
+                stage: 'Fungal-like infection',
+                maturity: 'Severe stunting and yield loss',
+                solutions: [
+                    'Apply Metalaxyl fungicide (Ridomil) at recommended rate',
+                    'Remove and destroy infected plants immediately',
+                    'Improve air circulation with proper spacing',
+                    'Use resistant varieties',
+                    'Avoid overhead irrigation'
+                ],
+                prevention: 'Use treated seeds. Plant resistant varieties. Avoid dense planting. Good drainage.'
+            },
+            'fall-armyworm-larva': {
+                disease: 'Fall Armyworm',
+                severity: 'Critical',
+                stage: 'Pest infestation - Whorl stage',
+                maturity: 'Total crop loss if untreated',
+                solutions: [
+                    'Apply Emamectin Benzoate 5% at 0.4g per liter immediately',
+                    'Alternative: Chlorantraniliprole at 0.3ml per liter',
+                    'Put fine sand, wood ash, or soil into plant whorl',
+                    'Hand-pick and destroy egg masses and larvae',
+                    'Install pheromone traps (1 trap per 100m²)',
+                    'Apply Neem seed extract at 30ml per liter',
+                    'Practice push-pull: intercrop with desmodium, border with Napier grass'
+                ],
+                prevention: 'Scout fields daily. Plant early (by mid-December). Use pheromone traps. Community-wide control.'
+            },
+            'grey_leaf_spot': {
+                disease: 'Gray Leaf Spot',
+                severity: 'High',
+                stage: 'Fungal infection - Vegetative',
+                maturity: 'Yield loss 20-40%',
+                solutions: [
+                    'Apply Azoxystrobin + Difenoconazole (Amistar Top) at 2ml/L',
+                    'Alternative: Mancozeb 80WP at 2.5g/L every 10-14 days',
+                    'Use resistant varieties: PAN 53, DK 8053, SC719',
+                    'Remove and burn infected lower leaves',
+                    'Ensure proper spacing (75cm x 25cm)',
+                    'Practice 2-3 year crop rotation'
+                ],
+                prevention: 'Use certified seeds. Bury crop residues. Plant early. Avoid overhead irrigation.'
+            },
+            'healthy': {
+                disease: 'Healthy Plant ✅',
+                severity: 'None',
+                stage: 'Healthy growth',
+                maturity: 'Continue monitoring',
+                solutions: [
+                    'Maintain current care practices',
+                    'Continue regular watering (25-30mm per week)',
+                    'Apply top-dressing fertilizer at tasseling (Urea 50kg/ha)',
+                    'Monitor regularly for early disease symptoms',
+                    'Keep field weed-free to reduce pest habitat',
+                    'Scout for Fall Armyworm daily during early growth'
+                ],
+                prevention: 'Scout weekly for pests and diseases. Maintain balanced nutrition. Practice IPM.'
+            },
+            'maize-streak-disease': {
+                disease: 'Maize Streak Virus',
+                severity: 'High',
+                stage: 'Viral infection',
+                maturity: 'Severe stunting, no yield',
+                solutions: [
+                    'Control leafhopper vectors with Imidacloprid (Confidor) at 0.5ml/L',
+                    'Remove and destroy infected plants immediately',
+                    'Plant resistant varieties: KSTP 94, Longe 5',
+                    'Use reflective mulches to repel leafhoppers',
+                    'Eliminate wild grasses (Digitaria, Panicum) near fields',
+                    'Plant during periods of low leafhopper activity',
+                    'No cure available - focus on prevention and vector control'
+                ],
+                prevention: 'Use resistant varieties. Treat seeds with Imidacloprid. Plant early. Control weeds.'
+            },
+            'yellow-stem-borer': {
+                disease: 'Yellow Stem Borer',
+                severity: 'High',
+                stage: 'Pest infestation',
+                maturity: 'Stem damage, lodging risk',
+                solutions: [
+                    'Apply Chlorpyrifos 48% EC at 2ml per liter',
+                    'Alternative: Lambda-cyhalothrin at 1ml/L',
+                    'Remove and destroy deadhearts manually',
+                    'Apply granular Carbofuran 3G into plant whorl',
+                    'Release Trichogramma parasitoids for biological control',
+                    'Practice push-pull farming with desmodium'
+                ],
+                prevention: 'Plant early. Remove crop residues. Intercrop with desmodium. Scout regularly.'
+            }
+        };
+
+        const fileInput = document.getElementById('fileInput');
+        const cameraInput = document.getElementById('cameraInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const errorMessage = document.getElementById('errorMessage');
+        const statusMessage = document.getElementById('statusMessage');
+
+        fileInput.addEventListener('change', handleImageUpload);
+        cameraInput.addEventListener('change', handleImageUpload);
+
+        window.addEventListener('load', () => {
+            statusMessage.style.display = 'block';
+            statusMessage.innerHTML = '✅ <strong>Real AI Ready!</strong> Powered by Roboflow. Upload maize leaf images for accurate disease detection.';
+            setTimeout(() => statusMessage.style.display = 'none', 5000);
+        });
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.result;
+                imagePreview.style.display = 'block';
+                
+                setTimeout(() => {
+                    analyzeImage(e.result);
+                }, 500);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function analyzeImage(base64Image) {
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            errorMessage.style.display = 'none';
+
+            try {
+                // Extract base64 data (remove data:image/...;base64, prefix)
+                const base64Data = base64Image.split(',')[1];
+                
+                const response = await fetch(
+                    `${API_URL}?api_key=${API_KEY}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: base64Data
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Roboflow API Response:', data);
+
+                loading.style.display = 'none';
+
+                if (data.predictions && data.predictions.length > 0) {
+                    // Get prediction with highest confidence
+                    const topPrediction = data.predictions.reduce((prev, current) => 
+                        (prev.confidence > current.confidence) ? prev : current
+                    );
+                    
+                    displayResults(topPrediction);
+                } else {
+                    showError('No disease detected in the image. Please upload a clear photo of a maize leaf.');
+                }
+
+            } catch (error) {
+                loading.style.display = 'none';
+                console.error('Analysis error:', error);
+                showError('Analysis failed: ' + error.message + '. Please check your internet connection and try again.');
+            }
+        }
+
+        function displayResults(prediction) {
+            const diseaseKey = prediction.class || 'healthy';
+            const confidence = Math.round(prediction.confidence * 100);
+            
+            // Get disease info or use default
+            const info = diseaseDatabase[diseaseKey] || diseaseDatabase['Blight'];
+
+            document.getElementById('diseaseName').textContent = info.disease;
+            document.getElementById('growthStage').textContent = info.stage;
+            document.getElementById('maturityStatus').textContent = info.maturity;
+            document.getElementById('preventionText').textContent = info.prevention;
+
+            const confidenceBadge = document.getElementById('confidenceBadge');
+            confidenceBadge.textContent = `🎯 ${confidence}% AI Confidence`;
+
+            const severityBadge = document.getElementById('severityBadge');
+            severityBadge.textContent = 'Severity: ' + info.severity;
+            severityBadge.className = 'severity severity-' + info.severity.toLowerCase();
+
+            const solutionsList = document.getElementById('solutionsList');
+            solutionsList.innerHTML = '';
+            info.solutions.forEach((solution, index) => {
+                const item = document.createElement('div');
+                item.className = 'solution-item';
+                item.innerHTML = `
+                    <div class="solution-number">${index + 1}</div>
+                    <div>${solution}</div>
+                `;
+                solutionsList.appendChild(item);
+            });
+
+            result.style.display = 'block';
+            result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 10000);
+        }
+
+        function resetApp() {
+            imagePreview.style.display = 'none';
+            result.style.display = 'none';
+            errorMessage.style.display = 'none';
+            fileInput.value = '';
+            cameraInput.value = '';
+            previewImg.src = '';
+        }
+    </script>
+</body>
+</html>
