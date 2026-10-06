@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: cropdoctor-backend
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: "*"   # change to your Vercel URL after deploying the website
